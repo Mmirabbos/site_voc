@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linguist.Pro v6</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            900: '#14532d',
+                        },
+                        dark: {
+                            bg: '#0f172a',
+                            card: '#1e293b',
+                            text: '#f8fafc'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    animation: {
+                        'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+                        'pop': 'pop 0.3s ease-out forwards'
+                    },
+                    keyframes: {
+                        shake: {
+                            '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+                            '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+                            '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+                            '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
+                        },
+                        pop: {
+                            '0%': { transform: 'scale(0.9)' },
+                            '50%': { transform: 'scale(1.05)' },
+                            '100%': { transform: 'scale(1)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap');
+        
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* 3D Flip Styles */
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+        
+        .card-container {
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .card-container.flipped {
+            transform: rotateY(180deg);
+        }
+
+        /* Confetti Particles */
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #f2d74e;
+            opacity: 0;
+        }
+        
+        /* Hide scrollbar for tags */
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 dark:bg-dark-bg dark:text-dark-text h-screen flex flex-col transition-colors duration-300 overflow-hidden relative">
+
+    <!-- Confetti Container -->
+    <div id="confetti-container" class="absolute inset-0 pointer-events-none z-50 overflow-hidden"></div>
+
+    <!-- Header -->
+    <header class="h-16 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-6 bg-white dark:bg-dark-card z-10 shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center text-white font-bold text-lg">L</div>
+            <span class="font-bold text-xl tracking-tight hidden md:block">Linguist<span class="text-brand-500">.Pro</span></span>
+        </div>
+        
+        <!-- Mode Switcher -->
+        <div class="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+            <button onclick="switchMode('flashcard')" id="btn-mode-flashcard" class="px-4 py-1.5 rounded-md text-sm font-bold transition-all shadow-sm bg-white dark:bg-gray-700 text-brand-600 dark:text-white">
+                <i class="fa-solid fa-clone mr-2"></i> Карточки
+            </button>
+            <button onclick="switchMode('quiz')" id="btn-mode-quiz" class="px-4 py-1.5 rounded-md text-sm font-bold transition-all text-gray-500 dark:text-gray-400 hover:text-gray-700">
+                <i class="fa-solid fa-list-check mr-2"></i> Квиз
+            </button>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <div id="stats-badge" class="hidden md:flex px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-xs font-mono">
+                Words: <span id="total-words" class="ml-2 font-bold text-brand-500">0</span>
+            </div>
+            <button onclick="toggleTheme()" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition text-gray-500 dark:text-gray-400">
+                <i class="fa-solid fa-moon dark:hidden"></i>
+                <i class="fa-solid fa-sun hidden dark:block text-yellow-400"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 relative flex flex-col items-center justify-center p-4 w-full max-w-5xl mx-auto">
+        
+        <!-- Load Screen (Initial) -->
+        <div id="load-screen" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-gray-50/90 dark:bg-dark-bg/90 backdrop-blur-sm">
+            <div class="text-center max-w-md p-8 rounded-2xl bg-white dark:bg-dark-card shadow-2xl border border-gray-200 dark:border-gray-700 animate-pop">
+                <div class="w-16 h-16 bg-brand-100 text-brand-600 rounded-2xl flex items-center justify-center mx-auto mb-6 text-2xl">
+                    <i class="fa-solid fa-database"></i>
+                </div>
+                <h2 class="text-2xl font-bold mb-2">Загрузка Базы</h2>
+                <p class="text-gray-500 dark:text-gray-400 mb-6 text-sm">
+                    Ожидаем <code>voc/words.csv</code>. Если файл не грузится автоматически (политика CORS), загрузите его вручную.
+                </p>
+                <div class="relative group cursor-pointer">
+                    <input type="file" id="csv-upload" accept=".csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleFileUpload(this)">
+                    <div class="py-3 px-6 bg-brand-600 text-white rounded-xl font-bold shadow-lg shadow-brand-500/30 group-hover:bg-brand-500 transition transform group-hover:scale-105 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-upload"></i> Выбрать CSV
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- App Interface -->
+        <div id="app-interface" class="w-full flex flex-col items-center hidden opacity-0 transition-opacity duration-500 h-full justify-center">
+            
+            <!-- Tags Filter -->
+            <div class="w-full max-w-xl mb-4 px-2">
+                <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide justify-center" id="tag-filters"></div>
+            </div>
+
+            <!-- Scene Container -->
+            <div class="w-full max-w-md perspective-1000 relative mb-6">
+                <!-- Counter -->
+                <div class="absolute -top-8 right-0 font-mono text-sm text-gray-400" id="counter">1 / 10</div>
+
+                <!-- THE CARD -->
+                <div class="h-80 w-full cursor-pointer group" id="card-wrapper" onclick="handleCardClick()">
+                    <div id="card-inner" class="card-container w-full h-full relative transform-style-3d shadow-2xl rounded-3xl">
+                        
+                        <!-- Front (Question) -->
+                        <div class="absolute w-full h-full bg-white dark:bg-dark-card rounded-3xl backface-hidden flex flex-col items-center justify-center border border-gray-200 dark:border-gray-700 p-6">
+                            <div class="absolute top-6 left-6">
+                                <span id="card-tag" class="px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-800 text-xs text-gray-500 font-medium">#tag</span>
+                            </div>
+                            <div class="absolute top-6 right-6 text-xs font-bold uppercase tracking-widest text-gray-300">EN</div>
+                            
+                            <h2 id="card-word" class="text-4xl md:text-5xl font-black text-gray-800 dark:text-white mb-3 text-center break-words w-full">Word</h2>
+                            <span id="card-type" class="text-sm italic text-brand-500 font-mono bg-brand-50 dark:bg-brand-900/20 px-3 py-1 rounded-full">noun</span>
+                            
+                            <p id="hint-text" class="absolute bottom-6 text-gray-400 text-xs animate-pulse">Нажми, чтобы перевернуть</p>
+                        </div>
+
+                        <!-- Back (Answer) -->
+                        <div class="absolute w-full h-full bg-gradient-to-br from-gray-900 to-gray-800 dark:from-brand-900 dark:to-gray-900 rounded-3xl backface-hidden rotate-y-180 flex flex-col items-center justify-center text-white p-6 border border-gray-700">
+                            <div class="absolute top-6 right-6 text-xs font-bold uppercase tracking-widest text-gray-500">RU</div>
+                            <h2 id="card-translation" class="text-3xl md:text-4xl font-bold mb-4 text-center break-words">Перевод</h2>
+                            
+                            <!-- Flashcard Controls -->
+                            <div id="flashcard-controls" class="flex gap-4 mt-4">
+                                <button onclick="event.stopPropagation(); nextCard(false)" class="w-12 h-12 rounded-full border-2 border-red-500/50 text-red-400 flex items-center justify-center hover:bg-red-500 hover:text-white transition"><i class="fa-solid fa-xmark"></i></button>
+                                <button onclick="event.stopPropagation(); speakWord()" class="w-12 h-12 rounded-full border-2 border-gray-500/50 text-gray-400 flex items-center justify-center hover:bg-white hover:text-black transition"><i class="fa-solid fa-volume-high"></i></button>
+                                <button onclick="event.stopPropagation(); nextCard(true)" class="w-12 h-12 rounded-full border-2 border-green-500/50 text-green-400 flex items-center justify-center hover:bg-green-500 hover:text-white transition"><i class="fa-solid fa-check"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quiz Options Container -->
+            <div id="quiz-options" class="w-full max-w-md grid grid-cols-1 gap-3 hidden">
+                <!-- Buttons injected here -->
+            </div>
+
+            <!-- Flashcard Navigation (Arrows) -->
+            <div id="flashcard-nav" class="w-full max-w-md flex justify-between items-center px-4 mt-4">
+                <button onclick="prevCard()" class="text-gray-400 hover:text-brand-500 transition flex items-center gap-2"><i class="fa-solid fa-arrow-left"></i> Назад</button>
+                <button onclick="shuffleDeck()" class="text-gray-400 hover:text-brand-500 transition"><i class="fa-solid fa-shuffle"></i></button>
+                <button onclick="nextCard(null)" class="text-gray-400 hover:text-brand-500 transition flex items-center gap-2">Вперед <i class="fa-solid fa-arrow-right"></i></button>
+            </div>
+
+             <!-- Quiz Next Button (Hidden initially) -->
+             <div id="quiz-next-btn" class="w-full max-w-md mt-4 hidden">
+                <button onclick="nextCard(null)" class="w-full py-3 bg-brand-600 text-white rounded-xl font-bold shadow-lg hover:bg-brand-500 transition flex items-center justify-center gap-2">
+                    Дальше <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // --- STATE ---
+        let dictionary = [];
+        let activeDeck = [];
+        let currentIndex = 0;
+        let isFlipped = false;
+        let currentMode = 'flashcard'; // 'flashcard' or 'quiz'
+        let quizLocked = false; // Prevent clicking multiple options
+
+        // --- INIT ---
+        document.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            }
+            
+            // Try Auto-load
+            fetch('voc/words.csv')
+                .then(res => { if(res.ok) return res.text(); throw new Error('No file'); })
+                .then(text => parseCSV(text))
+                .catch(() => console.log("Manual upload required"));
+        });
+
+        function parseCSV(text) {
+            const lines = text.split('\n').filter(l => l.trim());
+            dictionary = [];
+            // Skip header
+            for (let i = 1; i < lines.length; i++) {
+                const cols = lines[i].split(',');
+                if (cols.length >= 2) {
+                    dictionary.push({
+                        word: cols[0].trim(),
+                        translation: cols[1].trim(),
+                        type: cols[2]?.trim() || 'general',
+                        tag: cols[3]?.trim() || 'common'
+                    });
+                }
+            }
+            if (dictionary.length > 0) startApp();
+            else alert("CSV пуст!");
+        }
+
+        function handleFileUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => parseCSV(e.target.result);
+            reader.readAsText(file);
+        }
+
+        function startApp() {
+            activeDeck = [...dictionary];
+            document.getElementById('load-screen').classList.add('hidden');
+            const ui = document.getElementById('app-interface');
+            ui.classList.remove('hidden');
+            setTimeout(() => ui.classList.remove('opacity-0'), 50);
+            
+            renderTags();
+            updateStats();
+            loadCard(0);
+        }
+
+        // --- CORE LOGIC ---
+        function loadCard(index) {
+            if (activeDeck.length === 0) return showEmptyState();
+
+            // Reset State
+            const cardInner = document.getElementById('card-inner');
+            cardInner.classList.remove('flipped');
+            cardInner.parentElement.classList.remove('animate-shake'); // Remove error shake
+            isFlipped = false;
+            quizLocked = false;
+
+            const item = activeDeck[index];
+            
+            // Populate Card Content
+            setTimeout(() => {
+                document.getElementById('card-word').textContent = item.word;
+                document.getElementById('card-translation').textContent = item.translation;
+                document.getElementById('card-type').textContent = item.type;
+                document.getElementById('card-tag').textContent = `#${item.tag}`;
+                document.getElementById('counter').textContent = `${index + 1} / ${activeDeck.length}`;
+                
+                // Colorize Tag
+                const colors = ['bg-red-100 text-red-600', 'bg-blue-100 text-blue-600', 'bg-green-100 text-green-600', 'bg-purple-100 text-purple-600', 'bg-orange-100 text-orange-600'];
+                const colorClass = colors[item.tag.length % colors.length];
+                document.getElementById('card-tag').className = `px-2 py-1 rounded-md text-xs font-medium ${colorClass} dark:bg-opacity-20`;
+
+            }, 200);
+
+            // Mode Specific Rendering
+            if (currentMode === 'quiz') {
+                renderQuizOptions(item);
+                document.getElementById('hint-text').textContent = "Выберите перевод";
+                document.getElementById('quiz-next-btn').classList.add('hidden');
+            } else {
+                document.getElementById('hint-text').textContent = "Нажми, чтобы перевернуть";
+            }
+        }
+
+        function switchMode(mode) {
+            currentMode = mode;
+            
+            // UI Toggles
+            const btnFlash = document.getElementById('btn-mode-flashcard');
+            const btnQuiz = document.getElementById('btn-mode-quiz');
+            const flashControls = document.getElementById('flashcard-controls');
+            const flashNav = document.getElementById('flashcard-nav');
+            const quizOptions = document.getElementById('quiz-options');
+            const quizNext = document.getElementById('quiz-next-btn');
+
+            // Reset Styles
+            const activeClass = "bg-white dark:bg-gray-700 text-brand-600 dark:text-white shadow-sm";
+            const inactiveClass = "text-gray-500 dark:text-gray-400 hover:text-gray-700";
+
+            if (mode === 'flashcard') {
+                btnFlash.className = `px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeClass}`;
+                btnQuiz.className = `px-4 py-1.5 rounded-md text-sm font-bold transition-all ${inactiveClass}`;
+                
+                flashControls.style.display = 'flex';
+                flashNav.classList.remove('hidden');
+                quizOptions.classList.add('hidden');
+                quizNext.classList.add('hidden');
+            } else {
+                btnQuiz.className = `px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeClass}`;
+                btnFlash.className = `px-4 py-1.5 rounded-md text-sm font-bold transition-all ${inactiveClass}`;
+                
+                flashControls.style.display = 'none';
+                flashNav.classList.add('hidden');
+                quizOptions.classList.remove('hidden');
+            }
+
+            loadCard(currentIndex);
+        }
+
+        function handleCardClick() {
+            if (currentMode === 'flashcard') {
+                const cardInner = document.getElementById('card-inner');
+                cardInner.classList.toggle('flipped');
+                isFlipped = !isFlipped;
+            }
+            // In quiz mode, clicking card does nothing until answered
+        }
+
+        // --- QUIZ LOGIC ---
+        function renderQuizOptions(correctItem) {
+            const container = document.getElementById('quiz-options');
+            container.innerHTML = '';
+
+            // 1. Pick 3 random wrong answers
+            const allTranslations = dictionary.map(i => i.translation).filter(t => t !== correctItem.translation);
+            // Shuffle full list and take 3
+            const wrongOptions = allTranslations.sort(() => 0.5 - Math.random()).slice(0, 3);
+            
+            // 2. Combine with correct answer
+            const options = [...wrongOptions, correctItem.translation];
+            
+            // 3. Shuffle options
+            options.sort(() => 0.5 - Math.random());
+
+            // 4. Render Buttons
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = "w-full p-4 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-card font-semibold text-gray-700 dark:text-gray-200 hover:border-brand-500 transition-all transform active:scale-95";
+                btn.textContent = opt;
+                btn.onclick = () => checkQuizAnswer(btn, opt, correctItem.translation);
+                container.appendChild(btn);
+            });
+        }
+
+        function checkQuizAnswer(btn, selected, correct) {
+            if (quizLocked) return;
+            quizLocked = true;
+
+            const isCorrect = selected === correct;
+            
+            if (isCorrect) {
+                // SUCCESS EFFECT
+                btn.className = "w-full p-4 rounded-xl border-2 bg-green-500 border-green-500 text-white font-bold shadow-lg transform scale-105 transition-all";
+                triggerConfetti();
+                
+                // Flip card to show details
+                document.getElementById('card-inner').classList.add('flipped');
+            } else {
+                // ERROR EFFECT
+                btn.className = "w-full p-4 rounded-xl border-2 bg-red-500 border-red-500 text-white font-bold shadow-lg transition-all";
+                // Find and highlight correct
+                const buttons = document.getElementById('quiz-options').children;
+                for (let b of buttons) {
+                    if (b.textContent === correct) {
+                        b.className = "w-full p-4 rounded-xl border-2 border-green-500 text-green-500 font-bold opacity-70";
+                    }
+                }
+                // Shake Card
+                const wrapper = document.getElementById('card-wrapper');
+                wrapper.classList.add('animate-shake');
+                setTimeout(() => wrapper.classList.remove('animate-shake'), 500);
+            }
+
+            // Show Next Button
+            document.getElementById('quiz-next-btn').classList.remove('hidden');
+        }
+
+        // --- EFFECTS ---
+        function triggerConfetti() {
+            const container = document.getElementById('confetti-container');
+            const colors = ['#22c55e', '#3b82f6', '#ef4444', '#f59e0b', '#a855f7'];
+            
+            for (let i = 0; i < 50; i++) {
+                const el = document.createElement('div');
+                el.classList.add('confetti');
+                el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                el.style.left = (Math.random() > 0.5 ? 0 : 100) + '%'; // Start from sides
+                el.style.top = (50 + Math.random() * 50) + '%';
+                
+                // Animation vars
+                const x = (Math.random() - 0.5) * window.innerWidth * 0.5;
+                const y = -Math.random() * window.innerHeight * 0.8;
+                const rot = Math.random() * 720;
+                
+                el.animate([
+                    { transform: 'translate(0,0) rotate(0deg)', opacity: 1 },
+                    { transform: `translate(${x}px, ${y}px) rotate(${rot}deg)`, opacity: 0 }
+                ], {
+                    duration: 1000 + Math.random() * 1000,
+                    easing: 'cubic-bezier(0, .9, .57, 1)',
+                    fill: 'forwards'
+                });
+                
+                container.appendChild(el);
+                setTimeout(() => el.remove(), 2000);
+            }
+        }
+
+        // --- NAVIGATION & UTILS ---
+        function nextCard(known) {
+            if (known === true && currentMode === 'flashcard') {
+                activeDeck.splice(currentIndex, 1);
+            } else {
+                currentIndex++;
+            }
+
+            if (currentIndex >= activeDeck.length) currentIndex = 0;
+            loadCard(currentIndex);
+            updateStats();
+        }
+
+        function prevCard() {
+            currentIndex--;
+            if (currentIndex < 0) currentIndex = activeDeck.length - 1;
+            loadCard(currentIndex);
+        }
+
+        function shuffleDeck() {
+            activeDeck.sort(() => Math.random() - 0.5);
+            currentIndex = 0;
+            loadCard(0);
+        }
+
+        function renderTags() {
+            const tags = [...new Set(dictionary.map(i => i.tag))];
+            const container = document.getElementById('tag-filters');
+            
+            container.innerHTML = `<button onclick="filterDeck('all')" class="px-4 py-1.5 rounded-full text-xs font-bold bg-brand-500 text-white shadow-md whitespace-nowrap hover:bg-brand-600 transition">Все</button>`;
+            
+            tags.forEach(tag => {
+                container.innerHTML += `<button onclick="filterDeck('${tag}')" class="px-4 py-1.5 rounded-full text-xs font-bold bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-brand-500 hover:text-brand-500 transition whitespace-nowrap shadow-sm">#${tag}</button>`;
+            });
+        }
+
+        function filterDeck(tag) {
+            activeDeck = tag === 'all' ? [...dictionary] : dictionary.filter(i => i.tag === tag);
+            currentIndex = 0;
+            loadCard(0);
+        }
+
+        function updateStats() {
+            document.getElementById('total-words').innerText = activeDeck.length;
+        }
+
+        function showEmptyState() {
+            document.getElementById('card-word').textContent = "Колода пройдена!";
+            document.getElementById('card-translation').textContent = "Отличная работа!";
+            document.getElementById('card-tag').textContent = "#done";
+            document.getElementById('quiz-options').innerHTML = '';
+            document.getElementById('flashcard-controls').style.display = 'none';
+        }
+
+        function speakWord() {
+            if ('speechSynthesis' in window) {
+                const msg = new SpeechSynthesisUtterance(activeDeck[currentIndex].word);
+                msg.lang = 'en-US';
+                window.speechSynthesis.speak(msg);
+            }
+        }
+
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+        }
+    </script>
+</body>
+</html>
